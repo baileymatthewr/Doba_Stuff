@@ -89,7 +89,7 @@ function parseEmailsWithTracking(start) {
             tracking_label = GmailApp.getUserLabelByName("Tracking");
             tmp_thread = message.getThread();
             tmp_thread.addLabel(tracking_label).moveToArchive();
-            //removeDuplicates(sheet);
+            removeDuplicates(sheet);
           }
       }
     }
@@ -167,7 +167,7 @@ function parseEmailsWithTracking(start) {
           tracking_label = GmailApp.getUserLabelByName("Tracking");
           tmp_thread = message.getThread();
           tmp_thread.addLabel(tracking_label).moveToArchive();
-          //removeDuplicates(sheet);
+          removeDuplicates(sheet);
         }
       } // End if
     } // End else-if    //----------------------End FedEx---------------------//
@@ -179,12 +179,23 @@ function parseEmailsWithTracking(start) {
 }
 
 function removeDuplicates(name) {
-  var sheetname = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
-  var data = sheetname.getDataRange().getValues();
-  var newData = new Array();
+  name = name || 0;
+  
+  var sheetname;
+  var data;
+  var newData;
+  var row;
+  var duplicate;
+  if(name != 0) {
+    sheetname = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
+  } else {
+    sheetname = SpreadsheetApp.getActiveSheet();
+  }
+  data = sheetname.getDataRange().getValues();
+  newData = new Array();
   for(i in data){
-    var row = data[i];
-    var duplicate = false;
+    row = data[i];
+    duplicate = false;
     for(j in newData){
       if(row.join() == newData[j].join()){
         duplicate = true;
