@@ -25,6 +25,7 @@ function parseEmailsWithTracking(start) {
     var sheet;
     var tracking_label;
     var tmp_thread;
+    var sheetname;
     //------------------FedEx Emails------------------//
     if (/*sender.match(/.trackingupdates@fedex.com./) &&*/ subject.match(/.*FedEx.* Notification.*/) && !content.match(/.*SPORTS LICENSING.*/)) {
         if (content && sender && subject) {
@@ -77,8 +78,9 @@ function parseEmailsWithTracking(start) {
             //----Column 10: total_product_cost
             total_product_cost = "";
             //----Set the Sheet Name to "Northwest_S"      
-            sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Northwest_S");
-             //----------------------The Output File---------------------//
+            sheetname = "Northwest_S";
+            sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetname);
+            //----------------------The Output File---------------------//
     
              // [     1       ][    2            ][   3    ][     4     ][     5    ][    6    ][     7    ][     8     ][    9        ][     10           ]
              // [     A       ][    B            ][   C    ][     D     ][     E    ][    F    ][     G    ][     H     ][    I        ][      j           ]
@@ -89,7 +91,7 @@ function parseEmailsWithTracking(start) {
             tracking_label = GmailApp.getUserLabelByName("Tracking");
             tmp_thread = message.getThread();
             tmp_thread.addLabel(tracking_label).moveToArchive();
-            removeDuplicates(sheet);
+            removeDuplicates(sheetname);
           }
       }
     }
@@ -153,9 +155,10 @@ function parseEmailsWithTracking(start) {
         ship_price = "";
         //----Column 10: total_product_cost
         total_product_cost = "";
-        //----Set the Sheet Name to "FanMats_S"      
-        sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("FanMats_S");
-        if(tracking_number != "" && order_id != "") {   
+        //----Set the Sheet Name to "FanMats_S"
+        sheetname = "FanMats_S";
+        sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetname);
+        if(tracking_number != "" && order_id != "") {
            //----------------------The Output File---------------------//
   
            // [     1       ][    2            ][   3    ][     4     ][     5    ][    6    ][     7    ][     8     ][    9        ][     10           ]
@@ -167,7 +170,7 @@ function parseEmailsWithTracking(start) {
           tracking_label = GmailApp.getUserLabelByName("Tracking");
           tmp_thread = message.getThread();
           tmp_thread.addLabel(tracking_label).moveToArchive();
-          removeDuplicates(sheet);
+          removeDuplicates(sheetname);
         }
       } // End if
     } // End else-if    //----------------------End FedEx---------------------//
