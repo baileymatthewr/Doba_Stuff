@@ -70,7 +70,7 @@ function parseEmailsWithTracking(start) {
         if(tracking_number != "" && order_id != "") {
            
           // Correct the order_id and invoice_number if necessary
-          if(tracking_number.length == 12 && invoice_number.length == 8 && order_number == 7) {
+          if(tracking_number.length == 12 && invoice_number.length == 8 && order_id == 7) {
             tmp = invoice_number;
             invoice_number = order_id;
             order_id = tmp;
