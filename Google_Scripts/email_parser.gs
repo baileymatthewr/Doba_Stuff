@@ -179,7 +179,7 @@ function parseEmailsWithTracking(start) {
 // Postcondition: Duplicate rows are removed from a specified sheet
 // Big O notation: O(n^2)
 /*function removeDuplicates(name) {
-  name = name || 0;
+  name = (isNaN(name) &&  typeof name !== 'undefined') ? name : 0;
   
   var sheetname;
   var data;
