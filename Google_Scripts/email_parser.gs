@@ -7,7 +7,7 @@ function parseEmailsWithTracking(start) {
 
   start = isNaN(start) ? 0 : start;
   
-  var shipping_threads = GmailApp.search('in:inbox subject:"fedex shipment"', start, 500);
+  var shipping_threads = GmailApp.search('in:inbox {subject:"fedex shipment" subject:"fedex mps shipment"} from:trackingupdates@fedex.com', start, 500);
   
   for (var i = 0; i < shipping_threads.length; i++) {
 
@@ -21,6 +21,7 @@ function parseEmailsWithTracking(start) {
     var sku;
     var quantity;
     var tracking_number;
+    var master_tracking_number;
     var carrier;
     var ship_date;
     var ship_price;
@@ -30,80 +31,104 @@ function parseEmailsWithTracking(start) {
     var tracking_label;
     var tmp_thread;
     var sheetname;
-     
-    //------------------FedEx Emails for Northwest------------------//
-    if ((!content.match(/.*SPORTS LICENSING.*/i) || content.match(/.*NORTHWEST.*/i)) && sender.match(/.*trackingupdates@fedex.com.*/i)) {
-      
-      tmp = content.match(/Purchase order number:\s+(\d+)(\r?\n)/);
-      //------------THE FORMAT IS STANDARD-------------//
-      if(tmp && tmp[1]) {
-            
-        tmp = content.match(/Purchase order number:\s+(\d+)(\r?\n)/);
-        order_id = (tmp[1]) ? tmp[1].trim() : "";
-            
-        tmp = content.match(/Reference:\s+(\d+)(\r?\n)/);
-        invoice_number = (tmp[1]) ? tmp[1].trim() : "";
-            
-        tmp = content.match(/Number of pieces:\s+(\d+)(\r?\n)/);
-        quantity = (tmp[1]) ? tmp[1].trim() : "";
-            
-        tmp = content.match(/Tracking number:\s+(\d+)/);
-        tracking_number = (tmp[1]) ? tmp[1].trim() : "";
-            
-        tmp = content.match(/Weight:\s+([0-9]+\.[0-9]+)\s+.*(\r?\n)/);
-            
-        ship_weight = (tmp[1]) ? tmp[1] : "";
-            
-      } else {
-            
-        //------------THE FORMAT IS DIFFERENT-------------//
-        tmp = content.match(/Purchase order number:\*\s+(\d+)/);
-        order_id = (tmp[1]) ? tmp[1].trim() : "";
-
-        tmp = content.match(/Reference:\*\s+(\d+)/);
-        invoice_number = (tmp[1]) ? tmp[1].trim() : "";
-
-        tmp = content.match(/Number of pieces:\*\s+(\d+)/);
-        quantity = (tmp[1]) ? tmp[1].trim() : "";
-
-        tmp = content.match(/Tracking number:\*\s+(\d+)/);
-        tracking_number = (tmp[1]) ? tmp[1].trim() : "";
-
-        tmp = content.match(/Weight:\*\s+([0-9]+\.[0-9]+)/);
-        ship_weight = (tmp[1]) ? tmp[1] : "";
-      }
-      if(tracking_number != "" && order_id != "") {
-           
+    
+    //------------------SKIP Cancellations--------------------//
+    if(subject.match(/.*CANCELLATION.*/i)) {
+      // Do nothing
+    } else if (content.match(/.*NORTHWEST.*/i) && subject.match(/.*MPS.*/i)) {
+      //------------------Multiple Tracking FedEx Emails for Northwest----------------//
+      tmp = content.match(/Purchase order number:\*\s+(\d+)/);
+      order_id = (tmp[1]) ? tmp[1].trim() : "";
+      tmp = content.match(/Reference:\*\s+(\d+)/);
+      invoice_number = (tmp[1]) ? tmp[1].trim() : "";
+      tmp = content.match(/Master tracking number:\*\s+(\d+)/);
+      master_tracking_number = (tmp[1]) ? tmp[1].trim() : "";
+      tmp = content.match(/Tracking number:\*\s+(\d+)/);
+      tracking_number = (tmp[1]) ? tmp[1].trim() : "";
+      tmp = content.match(/Weight:\*\s+([0-9]+\.[0-9]+)/);
+      ship_weight = (tmp[1]) ? tmp[1] : "";
+      if(master_tracking_number != "" && tracking_number != "" && order_id != "") {
         // Correct the order_id and invoice_number if necessary
         if(tracking_number.length == 12) {
           tmp = invoice_number;
           invoice_number = order_id;
           order_id = tmp;
         }
-
+        quantity = "1";
         sku = "";
         carrier = "FedEx";
         ship_date = Utilities.formatDate(new Date(), "GMT-7", "yyyy-MM-dd");
-        ship_price = "";
-        total_product_cost = "";
+        ship_price = "0";
+        total_product_cost = "0";
         sheetname = "Northwest";
         sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetname);
-            
         //----------------------The Output File---------------------//
-        // [     1       ][    2            ][   3    ][     4     ][     5    ][    6    ][     7    ][     8     ][    9        ][     10           ]
-        // [     A       ][    B            ][   C    ][     D     ][     E    ][    F    ][     G    ][     H     ][    I        ][      j           ]
+        // [     1       ][        2        ][   3    ][     4     ][     5    ][    6    ][     7    ][     8     ][      9      ][        10        ]
+        // [     A       ][        B        ][   C    ][     D     ][     E    ][    F    ][     G    ][     H     ][      I      ][         j        ]
         //    order_id    | invoice_number   | sku     | quantity  |   tracking | carrier  | ship_date | ship_price | ship_weight | total_product_cost
+        sheet.appendRow([order_id, invoice_number, sku, quantity, master_tracking_number, carrier, ship_date, ship_price, ship_weight, total_product_cost]);
         sheet.appendRow([order_id, invoice_number, sku, quantity, tracking_number, carrier, ship_date, ship_price, ship_weight, total_product_cost]);
-            
         // Move the email from inbox to tracking && mark as read
         message.markRead();
         tracking_label = GmailApp.getUserLabelByName("Tracking");
         tmp_thread = message.getThread();
         tmp_thread.addLabel(tracking_label).moveToArchive();
       }
-    //-------------FedEx Emails for FanMats--------------//
+    } else if (!content.match(/.*SPORTS LICENSING.*/i) || content.match(/.*NORTHWEST.*/i)) {
+      //------------------Single Tracking FedEx Emails for Northwest------------------//  
+      tmp = content.match(/Purchase order number:\s+(\d+)(\r?\n)/);
+      //------------THE FORMAT IS STANDARD-------------//
+      if(tmp && tmp[1]) {    
+        tmp = content.match(/Purchase order number:\s+(\d+)(\r?\n)/);
+        order_id = (tmp[1]) ? tmp[1].trim() : "";
+        tmp = content.match(/Reference:\s+(\d+)(\r?\n)/);
+        invoice_number = (tmp[1]) ? tmp[1].trim() : "";
+        tmp = content.match(/Number of pieces:\s+(\d+)(\r?\n)/);
+        quantity = (tmp[1]) ? tmp[1].trim() : "";
+        tmp = content.match(/Tracking number:\s+(\d+)/);
+        tracking_number = (tmp[1]) ? tmp[1].trim() : "";
+        tmp = content.match(/Weight:\s+([0-9]+\.[0-9]+)\s+.*(\r?\n)/);
+        ship_weight = (tmp[1]) ? tmp[1] : "";
+      } else {
+        //------------THE FORMAT IS DIFFERENT-------------//
+        tmp = content.match(/Purchase order number:\*\s+(\d+)/);
+        order_id = (tmp[1]) ? tmp[1].trim() : "";
+        tmp = content.match(/Reference:\*\s+(\d+)/);
+        invoice_number = (tmp[1]) ? tmp[1].trim() : "";
+        tmp = content.match(/Number of pieces:\*\s+(\d+)/);
+        quantity = (tmp[1]) ? tmp[1].trim() : "";
+        tmp = content.match(/Tracking number:\*\s+(\d+)/);
+        tracking_number = (tmp[1]) ? tmp[1].trim() : "";
+        tmp = content.match(/Weight:\*\s+([0-9]+\.[0-9]+)/);
+        ship_weight = (tmp[1]) ? tmp[1] : "";
+      }
+      if(tracking_number != "" && order_id != "") {
+        // Correct the order_id and invoice_number if necessary
+        if(tracking_number.length == 12) {
+          tmp = invoice_number;
+          invoice_number = order_id;
+          order_id = tmp;
+        }
+        sku = "";
+        carrier = "FedEx";
+        ship_date = Utilities.formatDate(new Date(), "GMT-7", "yyyy-MM-dd");
+        ship_price = "0";
+        total_product_cost = "0";
+        sheetname = "Northwest";
+        sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetname);
+        //----------------------The Output File---------------------//
+        // [     1       ][        2        ][   3    ][     4     ][     5    ][    6    ][     7    ][     8     ][      9      ][        10        ]
+        // [     A       ][        B        ][   C    ][     D     ][     E    ][    F    ][     G    ][     H     ][      I      ][         j        ]
+        //    order_id    | invoice_number   | sku     | quantity  |   tracking | carrier  | ship_date | ship_price | ship_weight | total_product_cost
+        sheet.appendRow([order_id, invoice_number, sku, quantity, tracking_number, carrier, ship_date, ship_price, ship_weight, total_product_cost]);
+        // Move the email from inbox to tracking && mark as read
+        message.markRead();
+        tracking_label = GmailApp.getUserLabelByName("Tracking");
+        tmp_thread = message.getThread();
+        tmp_thread.addLabel(tracking_label).moveToArchive();
+      }
     } else if(content.match(/.*SPORTS LICENSING.*/i)) {
-            
+      //-------------FedEx Emails for FanMats--------------//
       tmp = content.match(/Purchase order number:\*\s+(\d+)/);
       if(tmp[1]) {
         order_id = tmp[1].trim();
@@ -111,7 +136,6 @@ function parseEmailsWithTracking(start) {
         tmp = content.match(/Purchase order number:\*\s+(\d+)(\r?\n)/);
         order_id = tmp[1].trim();
       }
-        
       tmp = content.match(/Invoice number:\*\s+(\d+)/);
       if(tmp[1]) {
         invoice_number = tmp[1].trim();
@@ -119,7 +143,6 @@ function parseEmailsWithTracking(start) {
         tmp = content.match(/Invoice number:\*\s+(\d+)(\r?\n)/);
         invoice_number = tmp[1].trim();
       }
-
       tmp = content.match(/Number of pieces:\*\s+(\d+)/);
       if(tmp[1]) {
         quantity = tmp[1].trim();
@@ -127,7 +150,6 @@ function parseEmailsWithTracking(start) {
         tmp = content.match(/Number of pieces:\*\s+(\d+)(\r?\n)/);
         quantity = tmp[1].trim();
       }
-
       tmp = content.match(/Tracking number:\*\s+(\d+)/);
       if(tmp[1]) {
         tracking_number = tmp[1].trim();
@@ -135,7 +157,6 @@ function parseEmailsWithTracking(start) {
         tmp = content.match(/Tracking number:\*\s+(\d+)(\r?\n)/);
         tracking_number = tmp[1].trim();
       }
-
       tmp = content.match(/Weight:\*\s+([0-9]+\.[0-9]+)\s+.*/);
       if(tmp[1]) {
         ship_weight = tmp[1].trim();
@@ -143,22 +164,19 @@ function parseEmailsWithTracking(start) {
         tmp = content.match(/Weight:\*\s+([0-9]+\.[0-9]+)\s+.*(\r?\n)/);
         ship_weight = tmp[1].trim();
       }
-
       sku = "";
       carrier = "FedEx";
       ship_date = Utilities.formatDate(new Date(), "GMT-7", "yyyy-MM-dd");
-      ship_price = "";
-      total_product_cost = "";
+      ship_price = "0";
+      total_product_cost = "0";
       sheetname = "FanMats";
       sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetname);
       if(tracking_number != "" && order_id != "") {
-          
         //----------------------The Output File---------------------//
-        // [     1       ][    2            ][   3    ][     4     ][     5    ][    6    ][     7    ][     8     ][    9        ][     10           ]
-        // [     A       ][    B            ][   C    ][     D     ][     E    ][    F    ][     G    ][     H     ][    I        ][      j           ]
+        // [     1       ][        2        ][   3    ][     4     ][     5    ][    6    ][     7    ][     8     ][      9      ][        10        ]
+        // [     A       ][        B        ][   C    ][     D     ][     E    ][    F    ][     G    ][     H     ][      I      ][         j        ]
         //    order_id    | invoice_number   | sku     | quantity  |   tracking | carrier  | ship_date | ship_price | ship_weight | total_product_cost
         sheet.appendRow([order_id, invoice_number, sku, quantity, tracking_number, carrier, ship_date, ship_price, ship_weight, total_product_cost]);
-          
         // Move the email from inbox to tracking && mark as read
         message.markRead();
         tracking_label = GmailApp.getUserLabelByName("Tracking");
