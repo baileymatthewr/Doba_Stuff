@@ -127,13 +127,53 @@ function parseEmailsWithTracking(start) {
         tmp_thread = message.getThread();
         tmp_thread.addLabel(tracking_label).moveToArchive();
       }
-    } else if(content.match(/.*SPORTS LICENSING.*/i)) {
-      //-------------FedEx Emails for FanMats--------------//
+    } else if (content.match(/.*SPORTS LICENSING.*/i) && subject.match(/.*MPS.*/i)) {
+      //------------------Multiple Tracking FedEx Emails for FanMats----------------//
       tmp = content.match(/Purchase order number:\*\s+(\d+)/);
+      order_id = (tmp[1]) ? tmp[1].trim() : "";
+      tmp = content.match(/Invoice number:\*\s+(\d+)/);
+      invoice_number = (tmp[1]) ? tmp[1].trim() : "";
+      tmp = content.match(/Master tracking number:\*\s+(\d+)/);
+      master_tracking_number = (tmp[1]) ? tmp[1].trim() : "";
+      tmp = content.match(/Tracking number:\*\s+(\d+)/);
+      tracking_number = (tmp[1]) ? tmp[1].trim() : "";
+      tmp = content.match(/Total shipment weight:\*\s+([0-9]+\.[0-9]+)/);
+      ship_weight = (tmp[1]) ? tmp[1] / 2 : "";
+      if(master_tracking_number != "" && tracking_number != "" && order_id != "") {
+        // Correct the order_id and invoice_number if necessary
+        if(tracking_number.length == 12) {
+          tmp = invoice_number;
+          invoice_number = order_id;
+          order_id = tmp;
+        }
+        quantity = "1";
+        sku = "";
+        carrier = "FedEx";
+        ship_date = Utilities.formatDate(new Date(), "GMT-7", "yyyy-MM-dd");
+        ship_price = "0";
+        total_product_cost = "0";
+        sheetname = "FanMats";
+        sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetname);
+        //----------------------The Output File---------------------//
+        // [     1       ][        2        ][   3    ][     4     ][     5    ][    6    ][     7    ][     8     ][      9      ][        10        ]
+        // [     A       ][        B        ][   C    ][     D     ][     E    ][    F    ][     G    ][     H     ][      I      ][         j        ]
+        //    order_id    | invoice_number   | sku     | quantity  |   tracking | carrier  | ship_date | ship_price | ship_weight | total_product_cost
+        sheet.appendRow([order_id, invoice_number, sku, quantity, master_tracking_number, carrier, ship_date, ship_price, ship_weight, total_product_cost]);
+        sheet.appendRow([order_id, invoice_number, sku, quantity, tracking_number, carrier, ship_date, ship_price, ship_weight, total_product_cost]);
+        // Move the email from inbox to tracking && mark as read
+        message.markRead();
+        tracking_label = GmailApp.getUserLabelByName("Tracking");
+        tmp_thread = message.getThread();
+        tmp_thread.addLabel(tracking_label).moveToArchive();
+      }
+    } else if(content.match(/.*SPORTS LICENSING.*/i) && !subject.match(/.*MPS.*/i)) {
+      //-------------FedEx Emails for FanMats--------------//
+      Logger.log(subject); Logger.log(content);
+      tmp = content.match(/Purchase order number:\*\s+[A-Z\W]*(\d+)/);
       if(tmp[1]) {
         order_id = tmp[1].trim();
       } else {
-        tmp = content.match(/Purchase order number:\*\s+(\d+)(\r?\n)/);
+        tmp = content.match(/Purchase order number:\*\s+[A-Z\W]*(\d+)(\r?\n)/);
         order_id = tmp[1].trim();
       }
       tmp = content.match(/Invoice number:\*\s+(\d+)/);
@@ -191,13 +231,14 @@ function parseEmailsWithTracking(start) {
   } // End for loop
 }
 
+
 // Function: removeDuplicates() Function
 // Description: remove duplicate rows from the sheet specified in the parameter
 // Preconditions: There must be a sheet to perform this on
 // Postcondition: Duplicate rows are removed from a specified sheet
 // Big O notation: O(n^2)
 /*function removeDuplicates(name) {
-  name = (isNaN(name) &&  typeof name !== 'undefined') ? name : 0;
+  name = name || 0;
   
   var sheetname;
   var data;
